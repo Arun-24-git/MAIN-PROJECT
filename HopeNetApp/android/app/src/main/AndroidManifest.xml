@@ -1,6 +1,22 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Existing Permission -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- USER STORY 4: Bluetooth & Location Permissions for Nearby Discovery -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    
+    <!-- Required for Android 12 (API 31) and above -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    
+    <!-- Required for BLE discovery to work -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- Tells the Play Store that this app uses Bluetooth hardware -->
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
 
     <application
       android:name=".MainApplication"
@@ -10,6 +26,7 @@
       android:allowBackup="false"
       android:theme="@style/AppTheme"
       android:supportsRtl="true">
+      
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"
