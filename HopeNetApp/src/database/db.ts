@@ -1,25 +1,16 @@
 import SQLite from 'react-native-sqlite-storage';
 
-// Enable Promise support for async/await
 SQLite.enablePromise(true);
 
 export const getDBConnection = async () => {
-  return SQLite.openDatabase({ 
-    name: 'hopenet.db', 
-    location: 'default' 
-  });
+  return SQLite.openDatabase({ name: 'hopenet.db', location: 'default' });
 };
 
 export const initDatabase = async () => {
   try {
     const db = await getDBConnection();
     
-    /**
-     * UPDATED SCHEMA:
-     * - Replaced 'username' with 'phone_number'
-     * - Set VARCHAR(15) for international phone number support
-     * - Kept RSA Key fields and timestamps as per design
-     */
+    // User Table
     await db.executeSql(`
       CREATE TABLE IF NOT EXISTS users (
         user_id TEXT PRIMARY KEY NOT NULL,
@@ -29,8 +20,20 @@ export const initDatabase = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // --- NEW: Device Table (Image 3 Requirement) ---
+    await db.executeSql(`
+      CREATE TABLE IF NOT EXISTS devices (
+        device_id TEXT PRIMARY KEY NOT NULL,
+        user_id TEXT,
+        last_seen TIMESTAMP NOT NULL,
+        signal_strength INTEGER NULL,
+        is_reachable INTEGER DEFAULT 0,
+        FOREIGN KEY (user_id) REFERENCES users (user_id)
+      );
+    `);
     
-    console.log("✅ HopeNet Database initialized with Phone Number schema");
+    console.log("✅ Database and Device Tables Initialized");
   } catch (error) {
     console.error("❌ Database Init Error:", error);
   }

@@ -1,21 +1,29 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Existing Permission -->
+    <!-- Basic Internet Permission -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- USER STORY 4: Bluetooth & Location Permissions for Nearby Discovery -->
-    <uses-permission android:name="android.permission.BLUETOOTH" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
-    
-    <!-- Required for Android 12 (API 31) and above -->
-    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    
-    <!-- Required for BLE discovery to work -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- ========================================================= -->
+    <!--  HOPE NET BLE PERMISSIONS (CRITICAL FOR MESH NETWORKING)  -->
+    <!-- ========================================================= -->
 
-    <!-- Tells the Play Store that this app uses Bluetooth hardware -->
+    <!-- 1. LOCATION PERMISSIONS -->
+    <!-- Required for scanning on Android 6.0 through Android 11 -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- 2. LEGACY BLUETOOTH (Android 11 and below) -->
+    <!-- 'maxSdkVersion="30"' prevents these from conflicting on Android 12+ -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    
+    <!-- 3. MODERN BLUETOOTH (Android 12+ / API 31+) -->
+    <!-- Removed 'neverForLocation' flag to ensure we see ALL peer devices -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- Hardware Feature Check: Prevents install on devices without BLE -->
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
 
     <application
