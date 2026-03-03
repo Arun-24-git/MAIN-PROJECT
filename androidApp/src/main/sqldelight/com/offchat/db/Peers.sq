@@ -1,0 +1,35 @@
+CREATE TABLE PeerEntity (
+    endpointId TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    publicKey TEXT NOT NULL DEFAULT '',
+    lastSeen INTEGER NOT NULL,
+    isConnected INTEGER NOT NULL DEFAULT 0
+);
+
+insertPeer:
+INSERT OR REPLACE INTO PeerEntity (endpointId, name, publicKey, lastSeen, isConnected)
+VALUES (?, ?, ?, ?, ?);
+
+selectAll:
+SELECT * FROM PeerEntity ORDER BY lastSeen DESC;
+
+selectConnected:
+SELECT * FROM PeerEntity WHERE isConnected = 1;
+
+selectById:
+SELECT * FROM PeerEntity WHERE endpointId = ?;
+
+updateConnectionStatus:
+UPDATE PeerEntity SET isConnected = ?, lastSeen = ? WHERE endpointId = ?;
+
+updatePublicKey:
+UPDATE PeerEntity SET publicKey = ? WHERE endpointId = ?;
+
+deleteById:
+DELETE FROM PeerEntity WHERE endpointId = ?;
+
+deleteAll:
+DELETE FROM PeerEntity;
+
+setAllDisconnected:
+UPDATE PeerEntity SET isConnected = 0;

@@ -1,0 +1,27 @@
+*.iml
+.gradle/
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.codemagic
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+fastlane/readme.md
+**/*.apk
+**/*.ap_
+**/*.dex
+**/*.class
+**/bin/
+**/gen/
+**/out/
+# Gradle build outputs
+build/
+androidApp/build/
+shared/build/
+# Kotlin/Native cache
+.konan/

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OffChat</string>
+    <string name="notification_channel_name">OffChat Connection</string>
+    <string name="notification_content_text">Nearby Connections running</string>
+    <string name="notification_content_title">OffChat Active</string>
+</resources>

@@ -1,0 +1,38 @@
+CREATE TABLE MessageEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    senderId TEXT NOT NULL,
+    senderName TEXT NOT NULL,
+    content TEXT NOT NULL,
+    encryptedContent TEXT NOT NULL,
+    iv TEXT NOT NULL,
+    signature TEXT NOT NULL,
+    timestamp INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'SENT',
+    isOutgoing INTEGER NOT NULL DEFAULT 0,
+    peerId TEXT NOT NULL
+);
+
+CREATE INDEX idx_messages_peer_id ON MessageEntity(peerId);
+CREATE INDEX idx_messages_timestamp ON MessageEntity(timestamp);
+
+insertMessage:
+INSERT OR REPLACE INTO MessageEntity (id, senderId, senderName, content, encryptedContent, iv, signature, timestamp, status, isOutgoing, peerId)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectAllByPeer:
+SELECT * FROM MessageEntity WHERE peerId = ? ORDER BY timestamp ASC;
+
+selectAll:
+SELECT * FROM MessageEntity ORDER BY timestamp ASC;
+
+updateStatus:
+UPDATE MessageEntity SET status = ? WHERE id = ?;
+
+deleteByPeer:
+DELETE FROM MessageEntity WHERE peerId = ?;
+
+deleteAll:
+DELETE FROM MessageEntity;
+
+countByPeer:
+SELECT COUNT(*) FROM MessageEntity WHERE peerId = ?;
