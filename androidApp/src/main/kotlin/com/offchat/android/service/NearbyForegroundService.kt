@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import org.koin.android.ext.android.inject
 import java.io.File
 import kotlin.io.encoding.Base64
@@ -72,6 +73,7 @@ class NearbyForegroundService : Service() {
         notificationHelper = NotificationHelper(this)
         startObservingMessages()
         startAutoReconnect()
+        startPendingMessageSync()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -170,7 +172,7 @@ class NearbyForegroundService : Service() {
                 timestamp = payload.timestamp,
                 status = MessageStatus.DELIVERED,
                 isOutgoing = false,
-                peerId = endpointId
+                peerId = payload.senderName // FIX: Use stable senderName instead of transient endpointId
             )
             messageRepository.saveMessage(message)
 
@@ -183,7 +185,7 @@ class NearbyForegroundService : Service() {
             notificationHelper.showMessageNotification(
                 senderName = notifyTitle,
                 messageText = notificationText,
-                peerId = endpointId
+                peerId = payload.senderName // Use stable senderName here too
             )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to process background message", e)
@@ -205,6 +207,52 @@ class NearbyForegroundService : Service() {
             }
             .catch { Log.e(TAG, "Auto-reconnect error", it) }
             .launchIn(serviceScope)
+    }
+
+    // ------------------------------------------------------------------
+    // Store-and-Forward: flush pending messages on reconnect
+    // ------------------------------------------------------------------
+
+    private fun startPendingMessageSync() {
+        peerManager.connectionEvents
+            .filterIsInstance<ConnectionEvent.Connected>()
+            .onEach { event ->
+                // Whenever a peer connects, process its queue
+                processPendingMessages(event.endpointId)
+            }
+            .catch { Log.e(TAG, "Sync error", it) }
+            .launchIn(serviceScope)
+    }
+
+    private suspend fun processPendingMessages(endpointId: String) {
+        try {
+            // FIX: Look up the stable name of the peer we just connected to
+            val peerName = peerManager.peers.value.firstOrNull { it.endpointId == endpointId }?.name ?: return
+            
+            // Fetch messages using the stable name
+            val pendingMessages = messageRepository.getPendingMessages(peerName)
+            if (pendingMessages.isEmpty()) return
+
+            Log.d(TAG, "Forwarding ${pendingMessages.size} stored messages to $peerName")
+
+            for (msg in pendingMessages) {
+                val payload = MessagePayload(
+                    encryptedText = msg.encryptedContent,
+                    iv = msg.iv,
+                    signature = msg.signature,
+                    senderId = msg.senderId,
+                    senderName = msg.senderName,
+                    messageId = msg.id,
+                    timestamp = msg.timestamp
+                )
+                val jsonBytes = json.encodeToString(payload).encodeToByteArray()
+                peerManager.sendPayload(endpointId, jsonBytes) // Send to the active socket
+
+                messageRepository.updateStatus(msg.id, MessageStatus.SENT)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to process pending messages", e)
+        }
     }
 
     // ------------------------------------------------------------------

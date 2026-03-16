@@ -160,7 +160,7 @@ fun PeerDiscoveryScreen(
                 items(uiState.connectedPeers, key = { "c_${it.endpointId}" }) { peer ->
                     ConnectedPeerCard(
                         peer = peer,
-                        onChat = { onPeerChat(peer.endpointId, peer.displayName) },
+                        onChat = { onPeerChat(peer.name, peer.displayName) }, // FIX: Pass peer.name
                         onDisconnect = { viewModel.disconnectFromPeer(peer) }
                     )
                     Spacer(modifier = Modifier.height(8.dp))

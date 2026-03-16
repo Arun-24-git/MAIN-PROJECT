@@ -36,3 +36,8 @@ DELETE FROM MessageEntity;
 
 countByPeer:
 SELECT COUNT(*) FROM MessageEntity WHERE peerId = ?;
+
+selectPendingByPeer:
+SELECT * FROM MessageEntity 
+WHERE peerId = ? AND status = 'SENDING' 
+ORDER BY timestamp ASC;

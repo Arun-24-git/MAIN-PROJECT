@@ -2,21 +2,15 @@ package com.offchat.android.ui.screens
 
 import android.content.Context
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -119,21 +113,7 @@ fun RegistrationScreen(onComplete: () -> Unit) {
             Text("Please fill in both fields.", color = HopeNetRed, fontSize = 13.sp, fontWeight = FontWeight.Medium)
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Security credentials
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Lock, contentDescription = null, tint = HopeNetTextGray, modifier = Modifier.size(14.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("SECURITY CREDENTIALS", color = HopeNetTextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        CredentialCard(title = "DEVICE ID", icon = Icons.Default.Fingerprint)
-        Spacer(modifier = Modifier.height(10.dp))
-        CredentialCard(title = "ENCRYPTION KEY", icon = Icons.Default.Key)
-
+        // Pushes the Register Button to the bottom
         Spacer(modifier = Modifier.weight(1f))
 
         Button(
@@ -141,7 +121,7 @@ fun RegistrationScreen(onComplete: () -> Unit) {
                 val name = displayName.trim()
                 val phone = phoneNumber.trim()
                 if (name.isNotBlank() && phone.isNotBlank()) {
-                    // Persist registration
+                    // Persist registration (Backend logic remains untouched)
                     prefs.edit {
                         putString("user_display_name", name)
                         putString("user_phone_number", phone)
@@ -165,6 +145,7 @@ fun RegistrationScreen(onComplete: () -> Unit) {
         }
 
         Spacer(modifier = Modifier.height(12.dp))
+
         Text(
             text = "SECURE HANDSHAKE PROTOCOL V2.0",
             color = HopeNetTextGray,
@@ -173,39 +154,5 @@ fun RegistrationScreen(onComplete: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center
         )
-    }
-}
-
-@Composable
-fun CredentialCard(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(HopeNetCardColor, RoundedCornerShape(12.dp))
-            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
-            .padding(16.dp)
-    ) {
-        Column {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(title, color = HopeNetTextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Icon(icon, contentDescription = null, tint = HopeNetTextGray, modifier = Modifier.size(16.dp))
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .background(HopeNetBackground, RoundedCornerShape(8.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.Lock, contentDescription = null, tint = HopeNetCyan, modifier = Modifier.size(16.dp))
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text("[ AUTO-GENERATED ]", color = HopeNetCyan, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
-                }
-                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = HopeNetGreen, modifier = Modifier.size(20.dp))
-            }
-        }
     }
 }

@@ -68,10 +68,9 @@ class ChatViewModel(
             .launchIn(viewModelScope)
     }
 
-    /** Observe connection status for a specific peer */
     fun observeConnectionStatus(peerId: String) {
         peerManager.peers
-            .map { peers -> peers.any { it.endpointId == peerId && it.isConnected } }
+            .map { peers -> peers.any { it.name == peerId && it.isConnected } } // Match by stable name
             .distinctUntilChanged()
             .onEach { connected ->
                 _uiState.value = _uiState.value.copy(isConnected = connected)
@@ -82,7 +81,12 @@ class ChatViewModel(
     /** Attempt to reconnect to a peer */
     fun reconnect(peerId: String) {
         _uiState.value = _uiState.value.copy(error = null)
-        peerManager.requestConnection(peerId)
+        val endpointId = peerManager.peers.value.firstOrNull { it.name == peerId }?.endpointId
+        if (endpointId != null) {
+            peerManager.requestConnection(endpointId)
+        } else {
+            _uiState.value = _uiState.value.copy(error = "Peer is not currently in range.")
+        }
     }
 
     // ------------------------------------------------------------------
@@ -93,34 +97,50 @@ class ChatViewModel(
         viewModelScope.launch {
             try {
                 val result = encryption.encrypt(text.encodeToByteArray(), sessionKey)
-                val payload = MessagePayload(
-                    encryptedText = Base64.encode(result.ciphertext),
-                    iv = Base64.encode(result.iv),
-                    signature = "text",
-                    senderId = localDeviceId,
-                    senderName = localDeviceName,
-                    messageId = UUID.randomUUID().toString(),
-                    timestamp = System.currentTimeMillis()
-                )
-                val jsonBytes = json.encodeToString(payload).encodeToByteArray()
-                peerManager.sendPayload(peerId, jsonBytes)
+                val messageId = UUID.randomUUID().toString()
+                val timestamp = System.currentTimeMillis()
 
+                // 1. Always save to DB FIRST as SENDING (Queued)
                 val message = Message(
-                    id = payload.messageId,
+                    id = messageId,
                     senderId = localDeviceId,
                     senderName = localDeviceName,
                     content = text,
-                    encryptedContent = payload.encryptedText,
-                    iv = payload.iv,
+                    encryptedContent = Base64.encode(result.ciphertext),
+                    iv = Base64.encode(result.iv),
                     signature = "text",
-                    timestamp = payload.timestamp,
-                    status = MessageStatus.SENT,
+                    timestamp = timestamp,
+                    status = MessageStatus.SENDING,
                     isOutgoing = true,
                     peerId = peerId
                 )
                 messageRepository.saveMessage(message)
+
+                // 2. If currently connected, attempt to forward immediately
+                // Retrieve the current active endpoint ID
+                val targetEndpointId = peerManager.peers.value.firstOrNull { it.name == peerId && it.isConnected }?.endpointId
+
+                if (_uiState.value.isConnected && targetEndpointId != null) {
+                    val payload = MessagePayload(
+                        encryptedText = message.encryptedContent,
+                        iv = message.iv,
+                        signature = message.signature,
+                        senderId = message.senderId,
+                        senderName = message.senderName,
+                        messageId = message.id,
+                        timestamp = message.timestamp
+                    )
+                    val jsonBytes = json.encodeToString(payload).encodeToByteArray()
+                    peerManager.sendPayload(targetEndpointId, jsonBytes) // Send via endpointId
+
+                    // Update to SENT if dispatched successfully
+                    messageRepository.updateStatus(message.id, MessageStatus.SENT)
+                }
+                // If offline, it gracefully remains 'SENDING' (Clock icon).
+                // The Background Service will automatically send it when reconnected.
+
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(error = "Failed to send: ${e.message}")
+                _uiState.value = _uiState.value.copy(error = "Failed to queue message: ${e.message}")
             }
         }
     }
@@ -139,40 +159,50 @@ class ChatViewModel(
                 }
 
                 val result = encryption.encrypt(audioBytes, sessionKey)
-                val payload = MessagePayload(
-                    encryptedText = Base64.encode(result.ciphertext),
-                    iv = Base64.encode(result.iv),
-                    signature = "voice",
-                    senderId = localDeviceId,
-                    senderName = localDeviceName,
-                    messageId = UUID.randomUUID().toString(),
-                    timestamp = System.currentTimeMillis()
-                )
-                val jsonBytes = json.encodeToString(payload).encodeToByteArray()
-                peerManager.sendPayload(peerId, jsonBytes)
+                val messageId = UUID.randomUUID().toString()
+                val timestamp = System.currentTimeMillis()
 
                 // Store voice file permanently
                 val voiceDir = File(appContext.filesDir, "voice_messages")
                 voiceDir.mkdirs()
-                val permanentFile = File(voiceDir, "${payload.messageId}.amr")
+                val permanentFile = File(voiceDir, "$messageId.amr")
                 File(audioFilePath).copyTo(permanentFile, overwrite = true)
 
+                // 1. Queue to DB as SENDING
                 val message = Message(
-                    id = payload.messageId,
+                    id = messageId,
                     senderId = localDeviceId,
                     senderName = localDeviceName,
                     content = "voice:${permanentFile.absolutePath}",
-                    encryptedContent = payload.encryptedText,
-                    iv = payload.iv,
+                    encryptedContent = Base64.encode(result.ciphertext),
+                    iv = Base64.encode(result.iv),
                     signature = "voice",
-                    timestamp = payload.timestamp,
-                    status = MessageStatus.SENT,
+                    timestamp = timestamp,
+                    status = MessageStatus.SENDING,
                     isOutgoing = true,
                     peerId = peerId
                 )
                 messageRepository.saveMessage(message)
+
+                // 2. Forward if connected
+                val targetEndpointId = peerManager.peers.value.firstOrNull { it.name == peerId && it.isConnected }?.endpointId
+
+                if (_uiState.value.isConnected && targetEndpointId != null) {
+                    val payload = MessagePayload(
+                        encryptedText = message.encryptedContent,
+                        iv = message.iv,
+                        signature = message.signature,
+                        senderId = message.senderId,
+                        senderName = message.senderName,
+                        messageId = message.id,
+                        timestamp = message.timestamp
+                    )
+                    val jsonBytes = json.encodeToString(payload).encodeToByteArray()
+                    peerManager.sendPayload(targetEndpointId, jsonBytes)
+                    messageRepository.updateStatus(message.id, MessageStatus.SENT)
+                }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(error = "Failed to send voice: ${e.message}")
+                _uiState.value = _uiState.value.copy(error = "Failed to queue voice: ${e.message}")
             }
         }
     }
@@ -231,7 +261,7 @@ class ChatViewModel(
                     timestamp = payload.timestamp,
                     status = MessageStatus.DELIVERED,
                     isOutgoing = false,
-                    peerId = endpointId
+                    peerId = payload.senderName // FIX: Store under the stable name
                 )
                 messageRepository.saveMessage(message)
             } else {
@@ -253,7 +283,7 @@ class ChatViewModel(
                     timestamp = payload.timestamp,
                     status = MessageStatus.DELIVERED,
                     isOutgoing = false,
-                    peerId = endpointId
+                    peerId = payload.senderName // FIX: Store under the stable name
                 )
                 messageRepository.saveMessage(message)
             }

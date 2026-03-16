@@ -57,6 +57,13 @@ class MessageRepositoryImpl(
     override suspend fun clearAll() = withContext(Dispatchers.Default) {
         queries.deleteAll()
     }
+
+    override suspend fun getPendingMessages(peerId: String): List<Message> =
+        withContext(Dispatchers.Default) {
+            queries.selectPendingByPeer(peerId)
+                .executeAsList()
+                .map { it.toDomain() }
+        }
 }
 
 private fun com.offchat.db.MessageEntity.toDomain(): Message = Message(

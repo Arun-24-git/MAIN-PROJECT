@@ -20,6 +20,7 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -32,7 +33,7 @@ class AndroidPeerManager(private val context: Context) : PeerManager {
     private val connectionsClient = Nearby.getConnectionsClient(context)
 
     private val _peers = MutableStateFlow<List<Peer>>(emptyList())
-    override val peers: Flow<List<Peer>> = _peers.asStateFlow()
+    override val peers: StateFlow<List<Peer>> = _peers.asStateFlow()
 
     private val _incomingPayloads = MutableSharedFlow<Pair<String, ByteArray>>(
         replay = 10,
@@ -134,7 +135,15 @@ class AndroidPeerManager(private val context: Context) : PeerManager {
 
         override fun onEndpointLost(endpointId: String) {
             Log.d(TAG, "Lost endpoint: $endpointId")
-            removePeer(endpointId)
+            // FIX: Only remove the peer if we aren't actively connected to them!
+            _peers.update { current ->
+                val peer = current.find { it.endpointId == endpointId }
+                if (peer != null && peer.isConnected) {
+                    current // Keep them, the active socket is still alive!
+                } else {
+                    current.filter { it.endpointId != endpointId }
+                }
+            }
             _connectionEvents.tryEmit(ConnectionEvent.EndpointLost(endpointId))
         }
     }

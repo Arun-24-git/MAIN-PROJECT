@@ -67,9 +67,9 @@ class ChatsListViewModel(
     ): List<ChatSummary> {
         if (messages.isEmpty()) return emptyList()
 
-        val grouped = messages.groupBy { it.peerId }
-        val liveMap = livePeers.associateBy { it.endpointId }
-        val dbMap = dbPeers.associateBy { it.endpointId }
+        val grouped = messages.groupBy { it.peerId } // peerId is now stable Name
+        val liveMap = livePeers.associateBy { it.name }
+        val dbMap = dbPeers.associateBy { it.name }
 
         return grouped.map { (peerId, peerMessages) ->
             val sortedMessages = peerMessages.sortedByDescending { it.timestamp }
@@ -80,7 +80,7 @@ class ChatsListViewModel(
             val incomingName = peerMessages.firstOrNull { !it.isOutgoing }?.senderName
 
             // Parse display name from "Name|Phone" format
-            val rawName = livePeer?.name ?: dbPeer?.name ?: incomingName ?: peerId.take(8)
+            val rawName = livePeer?.name ?: dbPeer?.name ?: incomingName ?: peerId
             val parts = rawName.split("|", limit = 2)
             val displayName = parts[0].ifBlank { rawName }
             val displayPhone = if (parts.size >= 2) parts[1] else ""

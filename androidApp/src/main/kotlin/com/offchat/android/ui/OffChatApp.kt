@@ -16,6 +16,8 @@ import com.offchat.android.ui.screens.RegistrationScreen
 import com.offchat.android.ui.screens.SettingsScreen
 import com.offchat.android.ui.screens.SplashScreen
 import com.offchat.android.ui.theme.OffChatTheme
+import java.net.URLDecoder
+import java.net.URLEncoder
 
 @Composable
 fun OffChatApp() {
@@ -68,7 +70,9 @@ fun OffChatApp() {
             composable("discovery") {
                 PeerDiscoveryScreen(
                     onPeerChat = { peerId, peerName ->
-                        navController.navigate("chat/$peerId/$peerName")
+                        val encodedPeerId = URLEncoder.encode(peerId, "UTF-8")
+                        val encodedPeerName = URLEncoder.encode(peerName, "UTF-8")
+                        navController.navigate("chat/$encodedPeerId/$encodedPeerName")
                     },
                     onSettingsClick = { navController.navigate("settings") },
                     onBackClick = { navController.popBackStack() }
@@ -79,7 +83,9 @@ fun OffChatApp() {
             composable("chats") {
                 ChatsListScreen(
                     onChatClick = { peerId, peerName ->
-                        navController.navigate("chat/$peerId/$peerName")
+                        val encodedPeerId = URLEncoder.encode(peerId, "UTF-8")
+                        val encodedPeerName = URLEncoder.encode(peerName, "UTF-8")
+                        navController.navigate("chat/$encodedPeerId/$encodedPeerName")
                     },
                     onBackClick = { navController.popBackStack() }
                 )
@@ -93,8 +99,8 @@ fun OffChatApp() {
                     navArgument("peerName") { type = NavType.StringType }
                 )
             ) { backStackEntry ->
-                val peerId = backStackEntry.arguments?.getString("peerId") ?: ""
-                val peerName = backStackEntry.arguments?.getString("peerName") ?: ""
+                val peerId = URLDecoder.decode(backStackEntry.arguments?.getString("peerId") ?: "", "UTF-8")
+                val peerName = URLDecoder.decode(backStackEntry.arguments?.getString("peerName") ?: "", "UTF-8")
                 ChatScreen(
                     peerId = peerId,
                     peerName = peerName,

@@ -11,4 +11,5 @@ interface MessageRepository {
     suspend fun updateStatus(messageId: String, status: MessageStatus)
     suspend fun deleteMessagesForPeer(peerId: String)
     suspend fun clearAll()
+    suspend fun getPendingMessages(peerId: String): List<Message>
 }
