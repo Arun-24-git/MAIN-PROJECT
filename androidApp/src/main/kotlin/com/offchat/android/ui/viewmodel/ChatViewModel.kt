@@ -1,6 +1,7 @@
 package com.offchat.android.ui.viewmodel
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.offchat.android.crypto.Encryption
@@ -54,7 +55,7 @@ class ChatViewModel(
     }
 
     init {
-        observeIncomingPayloads()
+        // Redundant observer removed – NearbyForegroundService handles incoming messages now
     }
 
     fun observeMessages(peerId: String) {
@@ -101,6 +102,7 @@ class ChatViewModel(
                 val timestamp = System.currentTimeMillis()
 
                 // 1. Always save to DB FIRST as SENDING (Queued)
+                Log.d("ChatViewModel", "Saving outgoing message $messageId with timestamp $timestamp")
                 val message = Message(
                     id = messageId,
                     senderId = localDeviceId,
@@ -204,91 +206,6 @@ class ChatViewModel(
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = "Failed to queue voice: ${e.message}")
             }
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // Incoming payload handling
-    // ------------------------------------------------------------------
-
-    private fun observeIncomingPayloads() {
-        peerManager.incomingPayloads
-            .onEach { (endpointId, bytes) ->
-                handleIncomingPayload(endpointId, bytes)
-            }
-            .catch { e ->
-                _uiState.value = _uiState.value.copy(error = "Connection error: ${e.message}")
-            }
-            .launchIn(viewModelScope)
-    }
-
-    private suspend fun handleIncomingPayload(endpointId: String, bytes: ByteArray) {
-        try {
-            val rawJson = bytes.decodeToString().trim { it <= ' ' || it == '\u0000' }
-            if (rawJson.isEmpty()) return
-
-            val payload = json.decodeFromString<MessagePayload>(rawJson)
-            val ciphertext = Base64.decode(payload.encryptedText)
-            val iv = Base64.decode(payload.iv)
-            val isVoice = payload.signature == "voice"
-
-            if (isVoice) {
-                // Decrypt audio bytes and save to file
-                val audioBytes = try {
-                    encryption.decrypt(ciphertext, sessionKey, iv)
-                } catch (e: Exception) {
-                    null
-                }
-
-                val content = if (audioBytes != null) {
-                    val voiceDir = File(appContext.filesDir, "voice_messages")
-                    voiceDir.mkdirs()
-                    val audioFile = File(voiceDir, "${payload.messageId}.amr")
-                    audioFile.writeBytes(audioBytes)
-                    "voice:${audioFile.absolutePath}"
-                } else {
-                    "[Voice decryption error]"
-                }
-
-                val message = Message(
-                    id = payload.messageId,
-                    senderId = payload.senderId,
-                    senderName = payload.senderName,
-                    content = content,
-                    encryptedContent = payload.encryptedText,
-                    iv = payload.iv,
-                    signature = "voice",
-                    timestamp = payload.timestamp,
-                    status = MessageStatus.DELIVERED,
-                    isOutgoing = false,
-                    peerId = payload.senderName // FIX: Store under the stable name
-                )
-                messageRepository.saveMessage(message)
-            } else {
-                // Text message
-                val plaintext = try {
-                    encryption.decrypt(ciphertext, sessionKey, iv).decodeToString()
-                } catch (e: Exception) {
-                    "[Decryption Error]"
-                }
-
-                val message = Message(
-                    id = payload.messageId,
-                    senderId = payload.senderId,
-                    senderName = payload.senderName,
-                    content = plaintext,
-                    encryptedContent = payload.encryptedText,
-                    iv = payload.iv,
-                    signature = payload.signature,
-                    timestamp = payload.timestamp,
-                    status = MessageStatus.DELIVERED,
-                    isOutgoing = false,
-                    peerId = payload.senderName // FIX: Store under the stable name
-                )
-                messageRepository.saveMessage(message)
-            }
-        } catch (e: Exception) {
-            _uiState.value = _uiState.value.copy(error = "Parse error: ${e.message}")
         }
     }
 

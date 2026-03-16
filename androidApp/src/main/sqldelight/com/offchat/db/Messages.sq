@@ -41,3 +41,12 @@ selectPendingByPeer:
 SELECT * FROM MessageEntity 
 WHERE peerId = ? AND status = 'SENDING' 
 ORDER BY timestamp ASC;
+
+deleteExpiredMessages:
+DELETE FROM MessageEntity WHERE timestamp < ?;
+
+countExpiredMessages:
+SELECT COUNT(*) FROM MessageEntity WHERE timestamp < ?;
+
+countAll:
+SELECT COUNT(*) FROM MessageEntity;

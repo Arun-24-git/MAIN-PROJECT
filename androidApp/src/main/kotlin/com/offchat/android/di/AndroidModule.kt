@@ -127,6 +127,17 @@ val androidModule = module {
                     val phone = prefs.getString("user_phone_number", "") ?: ""
                     putString("device_name", if (phone.isNotBlank()) "$name|$phone" else name)
                 }
+            },
+            getTTLDuration = {
+                val duration = prefs.getLong("message_ttl_duration", 86400000L)
+                android.util.Log.d("AndroidModule", "Retrieving TTL duration: $duration")
+                duration
+            },
+            saveTTLDuration = { duration ->
+                android.util.Log.d("AndroidModule", "Saving TTL duration: $duration")
+                prefs.edit(commit = true) {
+                    putLong("message_ttl_duration", duration)
+                }
             }
         )
     }

@@ -12,4 +12,5 @@ interface MessageRepository {
     suspend fun deleteMessagesForPeer(peerId: String)
     suspend fun clearAll()
     suspend fun getPendingMessages(peerId: String): List<Message>
+    suspend fun deleteExpiredMessages(thresholdTimestamp: Long): Long
 }

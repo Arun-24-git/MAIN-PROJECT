@@ -74,6 +74,9 @@ class MainActivity : ComponentActivity() {
         } else {
             prefs.getString("device_name", Build.MODEL) ?: Build.MODEL
         }
+        val currentTTL = prefs.getLong("message_ttl_duration", -1L)
+        android.util.Log.d("MainActivity", "Starting nearby service. Current saved TTL: $currentTTL")
+        
         val intent = NearbyForegroundService.startAction(this, deviceName)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)

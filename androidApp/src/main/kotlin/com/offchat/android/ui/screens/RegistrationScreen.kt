@@ -127,6 +127,7 @@ fun RegistrationScreen(onComplete: () -> Unit) {
                         putString("user_phone_number", phone)
                         putString("device_name", "$name|$phone")
                         putBoolean("is_registered", true)
+                        putLong("message_ttl_duration", 86400000L) // Ensure default is set
                     }
                     onComplete()
                 } else {

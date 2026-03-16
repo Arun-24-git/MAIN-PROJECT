@@ -24,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.launchIn
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import org.koin.android.ext.android.inject
+import android.content.SharedPreferences
 import java.io.File
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
@@ -50,6 +52,7 @@ class NearbyForegroundService : Service() {
     private val peerManager: PeerManager by inject()
     private val messageRepository: MessageRepository by inject()
     private val encryption: Encryption by inject()
+    private val prefs: SharedPreferences by inject()
 
     private lateinit var notificationHelper: NotificationHelper
 
@@ -74,6 +77,7 @@ class NearbyForegroundService : Service() {
         startObservingMessages()
         startAutoReconnect()
         startPendingMessageSync()
+        startTTLWatcher()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -169,11 +173,12 @@ class NearbyForegroundService : Service() {
                 encryptedContent = payload.encryptedText,
                 iv = payload.iv,
                 signature = payload.signature,
-                timestamp = payload.timestamp,
+                timestamp = System.currentTimeMillis(), // Use local time for TTL and sorting reliability
                 status = MessageStatus.DELIVERED,
                 isOutgoing = false,
-                peerId = payload.senderName // FIX: Use stable senderName instead of transient endpointId
+                peerId = payload.senderName
             )
+            Log.d(TAG, "Saving incoming message ${message.id} with local timestamp ${message.timestamp}")
             messageRepository.saveMessage(message)
 
             // Parse display name from "Name|Phone" for notification
@@ -252,6 +257,34 @@ class NearbyForegroundService : Service() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to process pending messages", e)
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // TTL Message Expiry
+    // ------------------------------------------------------------------
+
+    private fun startTTLWatcher() {
+        serviceScope.launch(Dispatchers.IO) {
+            Log.d(TAG, "TTL watcher started")
+            while (true) {
+                try {
+                    val ttlMillis = prefs.getLong("message_ttl_duration", 86400000L)
+                    val now = System.currentTimeMillis()
+                    val thresholdTimestamp = now - ttlMillis
+                    
+                    val deletedCount = messageRepository.deleteExpiredMessages(thresholdTimestamp)
+                    if (deletedCount > 0) {
+                        Log.d(TAG, "TTL Cleanup: Deleted $deletedCount expired messages (threshold=$thresholdTimestamp, now=$now)")
+                    }
+                    
+                    // Check every 2 seconds for high responsiveness during testing
+                    delay(2000L)
+                } catch (e: Exception) {
+                    Log.e(TAG, "TTL watcher error", e)
+                    delay(5000L)
+                }
+            }
         }
     }
 

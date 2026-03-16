@@ -64,6 +64,15 @@ class MessageRepositoryImpl(
                 .executeAsList()
                 .map { it.toDomain() }
         }
+
+    override suspend fun deleteExpiredMessages(thresholdTimestamp: Long): Long =
+        withContext(Dispatchers.Default) {
+            val toDelete = queries.countExpiredMessages(thresholdTimestamp).executeAsOne()
+            if (toDelete > 0) {
+                queries.deleteExpiredMessages(thresholdTimestamp)
+            }
+            toDelete
+        }
 }
 
 private fun com.offchat.db.MessageEntity.toDomain(): Message = Message(
